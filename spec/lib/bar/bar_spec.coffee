@@ -150,7 +150,6 @@ describe 'Morris.Bar', ->
           }, defaults
           $('#graph').find("text").filter($("#graph").find("text").filter (index, el) -> $(el).text().match /Y\:\d\sZ\:\d/).size().should.equal 4
 
-
   describe 'when setting bar radius', ->
     describe 'svg structure', ->
     defaults =

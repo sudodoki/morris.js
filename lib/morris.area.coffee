@@ -1,9 +1,10 @@
 class Morris.Area extends Morris.Line
   # Initialise
   #
-  areaDefaults = 
+  areaDefaults =
     fillOpacity: 'auto'
     behaveLikeLine: false
+    smooth: true
 
   constructor: (options) ->
     return new Morris.Area(options) unless (@ instanceof Morris.Area)
@@ -20,15 +21,13 @@ class Morris.Area extends Morris.Line
   #
   # @private
   calcPoints: ->
+    return super() if @options.behaveLikeLine
     for row in @data
       row._x = @transX(row.x)
       total = 0
       row._y = for y in row.y
-        if @options.behaveLikeLine
-          @transY(y)
-        else
-          total += (y || 0)
-          @transY(total)
+        total += (y || 0)
+        @transY(total)
       row._ymax = Math.max row._y...
 
   # draw the data series
@@ -41,16 +40,61 @@ class Morris.Area extends Morris.Line
     else
       range = [@options.ykeys.length-1..0]
 
+    @generateFilledPaths()
     for i in range
       @_drawFillFor i
       @_drawLineFor i
       @_drawPointFor i
 
   _drawFillFor: (index) ->
-    path = @paths[index]
+    path = @fillings[index]
     if path isnt null
       path = path + "L#{@transX(@xmax)},#{@bottom}L#{@transX(@xmin)},#{@bottom}Z"
       @drawFilledPath path, @fillForSeries(index)
+
+  flatten = (array) ->
+    flat = []
+    for item in array
+      if Object::toString.call(item) is "[object Array]"
+        flat.push.apply flat, item
+      else
+        flat.push item
+    flat
+
+  generateFilledPaths: ->
+    @fillings = for i in [0...@options.ykeys.length]
+      smooth = if typeof @options.smooth is "boolean" then @options.smooth else @options.ykeys[i] in @options.smooth
+      console.log('filled smooth is ', smooth)
+      coords = (
+        for r, index in @data
+          res = []
+          previousY = @data[index - 1] and @data[index - 1].y[i]
+          console.log(previousY)
+          if not previousY and not @options.continuousLine
+            res.push
+              x: r._x - 0.001, y: @bottom
+          if r.y[i]
+            res.push
+              x: r._x, y: r._y[i]
+            res
+          else
+
+            previousX = @data[index - 1] and @data[index - 1]._x || @left
+            console.log('previousX ', previousX)
+            unless @options.continuousLine
+              console.log('creating shit, lol')
+              {x: previousX, y: @bottom}
+        )
+      console.log('coords #1: ', coords)
+      coords = flatten(coords)
+      console.log('coords #2: ', coords)
+      coords = (c for c in coords when c)
+
+      if coords.length > 1
+        console.log(coords)
+        Morris.Line.createPath coords, smooth, @bottom
+      else
+        null
 
   fillForSeries: (i) ->
     color = Raphael.rgb2hsl @colorFor(@data[i], i, 'line')
